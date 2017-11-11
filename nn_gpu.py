@@ -3,6 +3,8 @@ import pandas as pd
 
 import pycuda.gpuarray as gpu
 import pycuda.cumath as cm
+import pycuda.driver as cuda
+import pycuda.autoinit
 
 
 # Activation functions
@@ -34,7 +36,7 @@ y = pd.read_csv("data/train_y.csv", delimiter=",", memory_map=True).values[:1000
 
 
 x = x / 255.0
-x = gpu.to_gpu(x)
+# x = gpu.to_gpu(x)
 # y = y.reshape(-1, 1)
 
 # test_x = pd.read_csv("data/test_x.csv", delimiter=",", memory_map=True).values
@@ -53,7 +55,7 @@ new_y = np.zeros([len(y), 40])
 for i, value in np.ndenumerate(y):
     new_y[i, output_encoding[value]] = 1
 
-y = gpu.to_gpu(new_y)
+# y = gpu.to_gpu(new_y)
 
 print(' Loaded Data')
 
@@ -87,15 +89,15 @@ bias_out      = gpu.to_gpu(2 * np.random.random([output_layer_size]) - 1)
 
 
 #Init weight updates
-db_in    = gpu.zeros(bias_in.shape)
-dW_in_2  = gpu.zeros(weights_in_2.shape)
-db_2     = gpu.zeros(bias_2.shape)
-dW_2_3   = gpu.zeros(weights_2_3.shape)
-db_3     = gpu.zeros(bias_3.shape)
-dW_3_4   = gpu.zeros(weights_3_4.shape)
-db_4     = gpu.zeros(bias_4.shape)
-dW_4_out = gpu.zeros(weights_4_out.shape)
-db_out   = gpu.zeros(bias_out.shape)
+db_in    = gpu.to_gpu(np.zeros(bias_in.shape))
+dW_in_2  = gpu.to_gpu(np.zeros(weights_in_2.shape))
+db_2     = gpu.to_gpu(np.zeros(bias_2.shape))
+dW_2_3   = gpu.to_gpu(np.zeros(weights_2_3.shape))
+db_3     = gpu.to_gpu(np.zeros(bias_3.shape))
+dW_3_4   = gpu.to_gpu(np.zeros(weights_3_4.shape))
+db_4     = gpu.to_gpu(np.zeros(bias_4.shape))
+dW_4_out = gpu.to_gpu(np.zeros(weights_4_out.shape))
+db_out   = gpu.to_gpu(np.zeros(bias_out.shape))
 
 ## Train
 corrects = 0
@@ -107,8 +109,8 @@ for i in range(nb_updates):
     for j in range(nb_minibatch):
         #pick an image randomly
         i_row = np.random.randint(0, train_data_size)
-        x_row = x[i_row]
-        y_row = y[i_row]
+        x_row = gpu.to_gpu(x[i_row])
+        y_row = gpu.to_gpu(y[i_row])
 
         #feed-forward (activation -> a)
         a1 = sigmoid(x_row+bias_in)
