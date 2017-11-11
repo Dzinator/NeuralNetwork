@@ -153,7 +153,7 @@ for i in range(nb_updates):
     bias_out = alpha * db_out
 
     #decrease alpha
-    alpha = alpha * ((nb_updates - i)/(nb_updates - i + 1))
+    # alpha = alpha * ((nb_updates - i)/(nb_updates - i + 1))
 
     #print progress
     if i % 100 == 0:

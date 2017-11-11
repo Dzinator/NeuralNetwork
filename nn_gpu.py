@@ -1,18 +1,23 @@
 import numpy as np
 import pandas as pd
 
+
+import pycuda.autoinit
 import pycuda.gpuarray as gpu
 import pycuda.cumath as cm
-import pycuda.driver as cuda
-import pycuda.autoinit
-
+from pycuda.elementwise import ElementwiseKernel
 
 # Activation functions
+gpu_sigmoid = ElementwiseKernel(
+    "float x",
+    "x[i] = x[i]*(1.0-x[i])",
+    "gpu_sigmoid"
+)
 def sigmoid(x, deriv=False):
     if deriv:
         return x * (1.0 - x)
     else:
-        return 1.0 / (1.0 + cm.exp(-x))
+        return 1.0 / (1.0 + np.exp(-x))
 
 def relu(x, deriv=False):
     if deriv:
@@ -31,8 +36,8 @@ def softmax(x, deriv=False):
         return cm.exp(x) / gpu.sum(cm.exp(x))
 
 
-x = pd.read_csv("data/train_x.csv", delimiter=",", memory_map=True).values[:1000]
-y = pd.read_csv("data/train_y.csv", delimiter=",", memory_map=True).values[:1000]
+x = pd.read_csv("data/train_x.csv", delimiter=",", nrows=100,  memory_map=True).values
+y = pd.read_csv("data/train_y.csv", delimiter=",", nrows=100, memory_map=True).values
 
 
 x = x / 255.0
@@ -86,6 +91,8 @@ weights_3_4   = gpu.to_gpu(2 * np.random.random([layer3_size, layer4_size]) - 1)
 bias_4        = gpu.to_gpu(2 * np.random.random([layer4_size]) - 1)
 weights_4_out = gpu.to_gpu(2 * np.random.random([layer4_size, output_layer_size]) - 1)
 bias_out      = gpu.to_gpu(2 * np.random.random([output_layer_size]) - 1)
+
+gpu_sigmoid(weights_in_2)
 
 
 #Init weight updates
