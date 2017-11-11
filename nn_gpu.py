@@ -1,32 +1,32 @@
 import numpy as np
 import pandas as pd
 
-def loss(predictions, labels):
-    ''' Negative log-likelihood to go with the softmax activation'''
-    return  np.mean(np.log(predictions))
+import pycuda.gpuarray as gpu
+import pycuda.cumath as cm
 
-#Activation functions
+
+# Activation functions
 def sigmoid(x, deriv=False):
     if deriv:
         return x * (1.0 - x)
     else:
-        return 1.0 / (1.0 + np.exp(-x))
+        return 1.0 / (1.0 + cm.exp(-x))
 
 def relu(x, deriv=False):
     if deriv:
-        return 1.0 - np.exp(-x)
+        return 1.0 - cm.exp(-x)
     else:
-        return np.maximum(x, 0)
+        return gpu.maximum(x, 0)
         # vf = np.vectorize(lambda x : x if x > 30 else np.log(1.0 + np.exp(x)))
         # return vf(x)
-        # return np.log(1.0 + np.exp(x))
+        # return cm.log(1.0 + cm.exp(x))
 
 def softmax(x, deriv=False):
     if deriv:
         return x * (1.0 - x)
     else:
-        x = x - np.max(x)
-        return np.exp(x) / np.sum(np.exp(x), axis=0)
+        x = x - gpu.max(x)
+        return cm.exp(x) / gpu.sum(cm.exp(x))
 
 
 x = pd.read_csv("data/train_x.csv", delimiter=",", memory_map=True).values[:1000]
@@ -34,6 +34,7 @@ y = pd.read_csv("data/train_y.csv", delimiter=",", memory_map=True).values[:1000
 
 
 x = x / 255.0
+x = gpu.to_gpu(x)
 # y = y.reshape(-1, 1)
 
 # test_x = pd.read_csv("data/test_x.csv", delimiter=",", memory_map=True).values
@@ -52,7 +53,7 @@ new_y = np.zeros([len(y), 40])
 for i, value in np.ndenumerate(y):
     new_y[i, output_encoding[value]] = 1
 
-y = new_y
+y = gpu.to_gpu(new_y)
 
 print(' Loaded Data')
 
@@ -74,27 +75,27 @@ output_layer_size = 40
 np.random.seed(7)
 
 # Init weights
-bias_in = 2 * np.random.random([input_layer_size]) - 1
-weights_in_2 = 2 * np.random.random([input_layer_size, layer2_size]) - 1
-bias_2 = 2 * np.random.random([layer2_size]) - 1
-weights_2_3 = 2 * np.random.random([layer2_size, layer3_size]) - 1
-bias_3 = 2 * np.random.random([layer3_size]) - 1
-weights_3_4 = 2 * np.random.random([layer3_size, layer4_size]) - 1
-bias_4 = 2 * np.random.random([layer4_size]) - 1
-weights_4_out = 2 * np.random.random([layer4_size, output_layer_size]) - 1
-bias_out = 2 * np.random.random([output_layer_size]) - 1
+bias_in       = gpu.to_gpu(2 * np.random.random([input_layer_size]) - 1)
+weights_in_2  = gpu.to_gpu(2 * np.random.random([input_layer_size, layer2_size]) - 1)
+bias_2        = gpu.to_gpu(2 * np.random.random([layer2_size]) - 1)
+weights_2_3   = gpu.to_gpu(2 * np.random.random([layer2_size, layer3_size]) - 1)
+bias_3        = gpu.to_gpu(2 * np.random.random([layer3_size]) - 1)
+weights_3_4   = gpu.to_gpu(2 * np.random.random([layer3_size, layer4_size]) - 1)
+bias_4        = gpu.to_gpu(2 * np.random.random([layer4_size]) - 1)
+weights_4_out = gpu.to_gpu(2 * np.random.random([layer4_size, output_layer_size]) - 1)
+bias_out      = gpu.to_gpu(2 * np.random.random([output_layer_size]) - 1)
 
 
 #Init weight updates
-db_in = np.zeros(bias_in.shape)
-dW_in_2 = np.zeros(weights_in_2.shape)
-db_2 = np.zeros(bias_2.shape)
-dW_2_3 = np.zeros(weights_2_3.shape)
-db_3 = np.zeros(bias_3.shape)
-dW_3_4 = np.zeros(weights_3_4.shape)
-db_4 = np.zeros(bias_4.shape)
-dW_4_out = np.zeros(weights_4_out.shape)
-db_out = np.zeros(bias_out.shape)
+db_in    = gpu.zeros(bias_in.shape)
+dW_in_2  = gpu.zeros(weights_in_2.shape)
+db_2     = gpu.zeros(bias_2.shape)
+dW_2_3   = gpu.zeros(weights_2_3.shape)
+db_3     = gpu.zeros(bias_3.shape)
+dW_3_4   = gpu.zeros(weights_3_4.shape)
+db_4     = gpu.zeros(bias_4.shape)
+dW_4_out = gpu.zeros(weights_4_out.shape)
+db_out   = gpu.zeros(bias_out.shape)
 
 ## Train
 corrects = 0
@@ -111,28 +112,28 @@ for i in range(nb_updates):
 
         #feed-forward (activation -> a)
         a1 = sigmoid(x_row+bias_in)
-        a2 = relu(np.dot(weights_in_2.transpose(), a1) + bias_2)
-        a3 = relu(np.dot(weights_2_3.transpose(), a2) + bias_3)
-        a4 = relu(np.dot(weights_3_4.transpose(), a3) + bias_4)
-        a5 = softmax(np.dot(weights_4_out.transpose(), a4) + bias_out)
+        a2 = relu(gpu.dot(weights_in_2.transpose(), a1) + bias_2)
+        a3 = relu(gpu.dot(weights_2_3.transpose(), a2) + bias_3)
+        a4 = relu(gpu.dot(weights_3_4.transpose(), a3) + bias_4)
+        a5 = softmax(gpu.dot(weights_4_out.transpose(), a4) + bias_out)
 
 
         #backpropagation
         b5 = y_row - a5
-        b4 = np.dot(weights_4_out, b5) * relu(a4, True)
-        b3 = np.dot(weights_3_4, b4) * relu(a3, True)
-        b2 = np.dot(weights_2_3, b3) * relu(a2, True)
-        b1 = np.dot(weights_in_2, b2) * sigmoid(a1, True)
+        b4 = gpu.dot(weights_4_out, b5) * relu(a4, True)
+        b3 = gpu.dot(weights_3_4, b4) * relu(a3, True)
+        b2 = gpu.dot(weights_2_3, b3) * relu(a2, True)
+        b1 = gpu.dot(weights_in_2, b2) * sigmoid(a1, True)
 
         #weight adjustments
         db_in += b1
-        dW_in_2 += np.dot(a1.reshape(-1, 1), b2.reshape(1, -1))
+        dW_in_2 += gpu.dot(a1.reshape(-1, 1), b2.reshape(1, -1))
         db_2 += b2
-        dW_2_3 += np.dot(a2, b3)
+        dW_2_3 += gpu.dot(a2, b3)
         db_3 += b3
-        dW_3_4 += np.dot(a3, b4)
+        dW_3_4 += gpu.dot(a3, b4)
         db_4 += b4
-        dW_4_out += np.dot(a4.reshape(-1, 1), b5.reshape(1, -1))
+        dW_4_out += gpu.dot(a4.reshape(-1, 1), b5.reshape(1, -1))
         db_out += b5
 
         #check for correct guess
