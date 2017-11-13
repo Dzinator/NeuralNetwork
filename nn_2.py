@@ -5,7 +5,7 @@ import pickle
 from sklearn.model_selection import train_test_split
 
 '''
-    Neural Net implemented from scratch with 3 hidden layers layers
+    Simpler version of the NN with 2 hidden layers
     
     Reads data from data/ folder where script is
 '''
@@ -62,52 +62,45 @@ print(' Loaded Data')
 
 # Parameters
 train_data_size = len(x)
-alpha = 0.001
+alpha = 0.01
 nb_minibatch = 1000
-nb_updates = np.round(train_data_size/nb_minibatch) * 500
+nb_updates = int(train_data_size/nb_minibatch) * 500
 
 # layer sizes
-input_layer_size = 4096
+input_layer_size = len(x[0])
 layer2_size = 1000
 layer3_size = 1000
-layer4_size = 1000
 output_layer_size = 40
 
 np.random.seed(7)
 
 # Init weights
-# bias_in = 2 * np.random.random([input_layer_size]) - 1
-weights_in_2 = 2 * np.random.random([input_layer_size, layer2_size]) - 1
-bias_2 = 2 * np.random.random([layer2_size]) - 1
-weights_2_3 = 2 * np.random.random([layer2_size, layer3_size]) - 1
-bias_3 = 2 * np.random.random([layer3_size]) - 1
-weights_3_4 = 2 * np.random.random([layer3_size, layer4_size]) - 1
-bias_4 = 2 * np.random.random([layer4_size]) - 1
-weights_4_out = 2 * np.random.random([layer4_size, output_layer_size]) - 1
-bias_out = 2 * np.random.random([output_layer_size]) - 1
-
 try:
-    with open('weights_3l.bin', 'r') as fp:
-        weights_in_2,
+    with open('weights_2l.bin', 'r') as fp:
+        tweights_in_2,
         bias_2,
         weights_2_3,
         bias_3,
-        weights_3_4,
-        bias_4,
-        weights_4_out,
+        weights_3_out,
         bias_out = pickle.loads(fp.read())
     print '-Loaded saved weights'
 except:
-    pass
+    bias_in = 2 * np.random.random([input_layer_size]) - 1
+    weights_in_2 = 2 * np.random.random([input_layer_size, layer2_size]) - 1
+    bias_2 = 2 * np.random.random([layer2_size]) - 1
+    weights_2_3 = 2 * np.random.random([layer2_size, layer3_size]) - 1
+    bias_3 = 2 * np.random.random([layer3_size]) - 1
+    weights_3_out = 2 * np.random.random([layer3_size, output_layer_size]) - 1
+    bias_out = 2 * np.random.random([output_layer_size]) - 1
+
 
 #Init weight updates
+db_in = np.zeros(bias_in.shape)
 dW_in_2 = np.zeros(weights_in_2.shape)
 db_2 = np.zeros(bias_2.shape)
 dW_2_3 = np.zeros(weights_2_3.shape)
 db_3 = np.zeros(bias_3.shape)
-dW_3_4 = np.zeros(weights_3_4.shape)
-db_4 = np.zeros(bias_4.shape)
-dW_4_out = np.zeros(weights_4_out.shape)
+dW_3_out = np.zeros(weights_3_out.shape)
 db_out = np.zeros(bias_out.shape)
 
 # Train
@@ -118,22 +111,21 @@ tries = 0
 for i in range(nb_updates):
 
     for j in range(nb_minibatch):
+
         #pick an image randomly
         i_row = np.random.randint(0, train_data_size)
         x_row = x[i_row]
         y_row = y[i_row]
 
-        #feed-forward (activation -> a)
-        a2 = relu(np.dot(weights_in_2.transpose(), x_row) + bias_2)
-        a3 = relu(np.dot(weights_2_3.transpose(), a2) + bias_3)
-        a4 = relu(np.dot(weights_3_4.transpose(), a3) + bias_4)
-        a5 = softmax(np.dot(weights_4_out.transpose(), a4) + bias_out)
+        #feed-forward (activations : a)
+        a2 = relu(np.dot(x_row, weights_in_2) + bias_2)
+        a3 = relu(np.dot(a2, weights_2_3) + bias_3)
+        o = softmax(np.dot(a3, weights_3_out) + bias_out)
 
 
         #backpropagation
-        b5 = y_row - a5
-        b4 = np.dot(weights_4_out, b5) * relu(a4, True)
-        b3 = np.dot(weights_3_4, b4) * relu(a3, True)
+        bo = y_row - o
+        b3 = np.dot(weights_3_out, bo) * relu(a3, True)
         b2 = np.dot(weights_2_3, b3) * relu(a2, True)
 
         #weight adjustments
@@ -141,13 +133,11 @@ for i in range(nb_updates):
         db_2 += b2
         dW_2_3 += np.dot(a2.reshape(-1, 1), b3.reshape(1, -1))
         db_3 += b3
-        dW_3_4 += np.dot(a3.reshape(-1, 1), b4.reshape(1, -1))
-        db_4 += b4
-        dW_4_out += np.dot(a4.reshape(-1, 1), b5.reshape(1, -1))
-        db_out += b5
+        dW_3_out += np.dot(a3.reshape(-1, 1), bo.reshape(1, -1))
+        db_out += bo
 
         #check for correct guess
-        if np.argmax(a5) == np.argmax(y_row):
+        if np.argmax(o) == np.argmax(y_row):
             corrects += 1
 
         tries += 1
@@ -157,13 +147,11 @@ for i in range(nb_updates):
     bias_2 = alpha * db_2
     weights_2_3 = alpha * dW_2_3
     bias_3 = alpha * db_3
-    weights_3_4 = alpha * dW_3_4
-    bias_4 = alpha * db_4
-    weights_4_out = alpha * dW_4_out
+    weights_3_out = alpha * dW_3_out
     bias_out = alpha * db_out
 
-    #decrease alpha
-    alpha = alpha * ((nb_updates - i + 0.0)/(nb_updates - i + 1.0))
+    #decrease alpha over training
+    alpha = alpha * ((nb_updates - i)/(nb_updates - i + 1))
 
     #print progress
     if i % 100 == 0:
@@ -178,10 +166,9 @@ for i in range(nb_updates):
 
         for x_t, y_t in zip(x_test, y_test):
 
-            a2 = relu(np.dot(weights_in_2.transpose(), x_row) + bias_2)
-            a3 = relu(np.dot(weights_2_3.transpose(), a2) + bias_3)
-            a4 = relu(np.dot(weights_3_4.transpose(), a3) + bias_4)
-            o = softmax(np.dot(weights_4_out.transpose(), a4) + bias_out)
+            a2 = relu(np.dot(x_t, weights_in_2) + bias_2)
+            a3 = relu(np.dot(a2, weights_2_3) + bias_3)
+            o = softmax(np.dot(a3, weights_3_out) + bias_out)
 
             if np.argmax(o) == np.argmax(y_t):
 
@@ -192,16 +179,15 @@ for i in range(nb_updates):
         print ('    Test Accuracy = %0.4f' % (100.0 * test_correct / test_tries))
 
         #saving weights
-        with open('weights_3l.bin', 'w') as fp:
+        with open('weights_2l.bin', 'w') as fp:
             fp.write(pickle.dumps([
                 weights_in_2,
                 bias_2,
                 weights_2_3,
                 bias_3,
-                weights_3_4,
-                bias_4,
-                weights_4_out,
+                weights_3_out,
                 bias_out]))
 
         tries = 0
         corrects = 0
+
