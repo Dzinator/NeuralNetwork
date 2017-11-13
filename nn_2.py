@@ -151,7 +151,7 @@ for i in range(nb_updates):
     bias_out = alpha * db_out
 
     #decrease alpha over training
-    alpha = alpha * ((nb_updates - i)/(nb_updates - i + 1))
+    alpha = alpha * ((nb_updates - i + 0.0)/(nb_updates - i + 1.0))
 
     #print progress
     if i % 100 == 0:

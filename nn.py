@@ -68,9 +68,9 @@ nb_updates = np.round(train_data_size/nb_minibatch) * 500
 
 # layer sizes
 input_layer_size = 4096
-layer2_size = 1000
+layer2_size = 2000
 layer3_size = 1000
-layer4_size = 1000
+layer4_size = 500
 output_layer_size = 40
 
 np.random.seed(7)
