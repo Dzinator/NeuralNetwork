@@ -75,7 +75,7 @@ print(' Loaded Data')
 
 # Parameters
 alpha = 0.01
-nb_minibatch = 1000
+nb_minibatch = 100
 nb_updates = int((train_data_size/nb_minibatch) * 500)
 
 # layer sizes
@@ -125,18 +125,18 @@ for i in range(nb_updates):
     for j in range(nb_minibatch):
         #pick an image randomly
         i_row = np.random.randint(0, train_data_size)
-        x_row = gpu.to_gpu(x[i_row])
+        x_row = gpu.to_gpu(x[i_row]).reshape(-1, 1)
         y_row = y[i_row]
 
         #feed-forward (activation -> a)
-        if i > 0:
-            print(x_row.shape, bias_in.shape, bias_in)
-        a1 = sigmoid(x_row+bias_in).reshape(-1, 1)
+        # if i > 0:
+        # print(x_row.shape, bias_in.shape, bias_in)
+        # a1 = sigmoid(x_row+bias_in).reshape(-1, 1)
 
         # dt = sk.dot(weights_in_2.transpose().astype(np.float32), a1)
         # print(weights_in_2.transpose().shape, a1.shape, type(dt), dt.shape, bias_2.shape)
         a2 = relu(sk.dot(weights_in_2.transpose().astype(np.float32),
-            a1.astype(np.float32)) + bias_2.reshape(-1, 1))
+            x_row.astype(np.float32)) + bias_2.reshape(-1, 1))
         a3 = relu(sk.dot(weights_2_3.transpose().astype(np.float32),
             a2.astype(np.float32)) + bias_3.reshape(-1, 1))
         a4 = relu(sk.dot(weights_3_4.transpose().astype(np.float32), 
@@ -150,11 +150,11 @@ for i in range(nb_updates):
         b4 = sk.dot(weights_4_out, b5) * relu(a4, True)
         b3 = sk.dot(weights_3_4, b4) * relu(a3, True)
         b2 = sk.dot(weights_2_3, b3) * relu(a2, True)
-        b1 = sk.dot(weights_in_2, b2) * sigmoid(a1, True)
+        # b1 = sk.dot(weights_in_2, b2) * sigmoid(a1, True)
 
         #weight adjustments
-        db_in += b1
-        dW_in_2 += sk.dot(a1.reshape(-1, 1), b2.reshape(1, -1))
+        # db_in += b1
+        dW_in_2 += sk.dot(x_row.astype(np.float32).reshape(-1, 1), b2.astype(np.float32).reshape(1, -1))
         db_2 += b2
         dW_2_3 += sk.dot(a2.reshape(-1, 1), b3.reshape(1, -1))
         db_3 += b3
@@ -174,8 +174,8 @@ for i in range(nb_updates):
         tries += 1
 
     # update parameters per SGD
-    bias_in = (alpha * db_in).reshape(-1, 1)
-    print(bias_in.shape, db_in.shape)
+    # bias_in = (alpha * db_in).reshape(-1, 1)
+    # print(bias_in.shape, db_in.shape)
     weights_in_2 = (alpha * dW_in_2)
     bias_2 = (alpha * db_2).reshape(-1, 1)
     weights_2_3 = (alpha * dW_2_3)
@@ -186,7 +186,7 @@ for i in range(nb_updates):
     bias_out = (alpha * db_out).reshape(-1, 1)
 
     #decrease alpha
-    alpha = alpha * ((nb_updates - i)/(nb_updates - i + 1))
+    alpha = alpha * ((nb_updates - i + 0.0)/(nb_updates - i + 1.0))
 
     #print progress
     if i % 100 == 0:
